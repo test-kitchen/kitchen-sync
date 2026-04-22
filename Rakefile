@@ -18,3 +18,16 @@
 #
 
 require 'bundler/gem_tasks'
+
+begin
+  require 'cookstyle'
+  require 'rubocop/rake_task'
+  RuboCop::RakeTask.new(:style) do |task|
+    task.options << '--chefstyle'
+    task.options << '--display-cop-names'
+  end
+rescue LoadError
+  puts 'cookstyle is not available. (sudo) gem install cookstyle to enable the style task.'
+end
+
+task default: [:style]
