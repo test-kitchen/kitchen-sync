@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2016, Noah Kantrowitz
+# Copyright:: 2014-2016, Noah Kantrowitz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,25 +14,24 @@
 # limitations under the License.
 #
 
-require 'benchmark'
-require 'digest/sha1'
-require 'json'
+require "benchmark" unless defined?(Benchmark)
+require "digest/sha1" unless defined?(Digest::SHA1)
+require "json" unless defined?(JSON)
 
-require 'kitchen/transport/ssh'
-require 'net/sftp'
+require "kitchen/transport/ssh"
+require "net/sftp"
 
-require 'kitchen-sync/core_ext'
-
+require "kitchen-sync/core_ext"
 
 module Kitchen
   module Transport
     class Sftp < Ssh
-      CHECKSUMS_PATH = File.expand_path('../../../kitchen-sync/checksums.rb', __FILE__)
+      CHECKSUMS_PATH = File.expand_path("../../kitchen-sync/checksums.rb", __dir__)
       CHECKSUMS_HASH = Digest::SHA1.file(CHECKSUMS_PATH)
-      CHECKSUMS_REMOTE_PATH = "/tmp/checksums-#{CHECKSUMS_HASH}.rb" # This won't work on Windows targets
+      CHECKSUMS_REMOTE_PATH = "/tmp/checksums-#{CHECKSUMS_HASH}.rb".freeze # This won't work on Windows targets
       MAX_TRANSFERS = 64
 
-      default_config :ruby_path, '/opt/chef/embedded/bin/ruby'
+      default_config :ruby_path, "/opt/chef/embedded/bin/ruby"
 
       def finalize_config!(instance)
         super.tap do
@@ -94,13 +93,12 @@ module Kitchen
             full_remote = File.join(remote, File.basename(local))
             options = {
               recursive: File.directory?(local),
-              purge: File.basename(local) != 'cache',
+              purge: File.basename(local) != "cache",
             }
-            recursive = File.directory?(local)
             time = Benchmark.realtime do
               sftp_upload!(local, full_remote, options)
             end
-            logger.info("[SFTP] Time taken to upload #{local} to #{self}:#{full_remote}: %.2f sec" % time)
+            logger.info(format("[SFTP] Time taken to upload #{local} to #{self}:#{full_remote}: %.2f sec", time))
           end
         end
 
@@ -137,11 +135,9 @@ module Kitchen
           exit_code = nil
           closed = false
           session.open_channel do |channel|
-
             channel.request_pty
 
             channel.exec(command) do |_ch, _success|
-
               channel.on_data do |_ch, data|
                 logger << data
               end
@@ -154,7 +150,7 @@ module Kitchen
                 exit_code = data.read_long
               end
 
-              channel.on_close do |ch| # This block is new.
+              channel.on_close do |_ch| # This block is new.
                 closed = true
               end
             end
@@ -179,6 +175,7 @@ module Kitchen
         def safe_stat(path)
           stat = sftp_session.lstat!(path)
           raise "#{path} is a symlink, possible security threat, bailing out" if stat.symlink?
+
           true
         rescue Net::SFTP::StatusException
           false
@@ -190,6 +187,7 @@ module Kitchen
         def copy_checksums_script!
           # Fast path because upload itself is called multiple times.
           return if @checksums_copied
+
           # Only try to transfer the script if it isn't present. a stat takes about
           # 1/3rd the time of the transfer, so worst case here is still okay.
           sftp_session.upload!(CHECKSUMS_PATH, CHECKSUMS_REMOTE_PATH) unless safe_stat(CHECKSUMS_REMOTE_PATH)
@@ -198,13 +196,14 @@ module Kitchen
 
         def files_to_upload(checksums, local, recursive)
           glob_path = if recursive
-            File.join(local, '**', '*')
-          else
-            local
-          end
+                        File.join(local, "**", "*")
+                      else
+                        local
+                      end
           pending = []
           Dir.glob(glob_path, File::FNM_PATHNAME | File::FNM_DOTMATCH).each do |path|
             next unless File.file?(path)
+
             rel_path = path[local.length..-1]
             remote_hash = checksums.delete(rel_path)
             pending << rel_path unless remote_hash && remote_hash == Digest::SHA1.file(path).hexdigest
@@ -213,17 +212,17 @@ module Kitchen
         end
 
         def upload_file(checksums, local, remote, rel_path)
-          parts = rel_path.split('/')
+          parts = rel_path.split("/")
           parts.pop # Drop the filename since we are only checking dirs
           parts_to_check = []
           until parts.empty?
             parts_to_check << parts.shift
-            path_to_check = parts_to_check.join('/')
-            unless checksums[path_to_check]
-              logger.debug("[SFTP] Creating directory #{remote}#{path_to_check}")
-              add_xfer(sftp_session.mkdir("#{remote}#{path_to_check}"))
-              checksums[path_to_check] = true
-            end
+            path_to_check = parts_to_check.join("/")
+            next if checksums[path_to_check]
+
+            logger.debug("[SFTP] Creating directory #{remote}#{path_to_check}")
+            add_xfer(sftp_session.mkdir("#{remote}#{path_to_check}"))
+            checksums[path_to_check] = true
           end
           logger.debug("[SFTP] Uploading #{local}#{rel_path} to #{remote}#{rel_path}")
           add_xfer(sftp_session.upload("#{local}#{rel_path}", "#{remote}#{rel_path}"))
@@ -248,16 +247,13 @@ module Kitchen
           sftp_loop
         end
 
-        def sftp_loop(n_xfers=MAX_TRANSFERS)
+        def sftp_loop(n_xfers = MAX_TRANSFERS)
           sftp_session.loop do
-            sftp_xfers.delete_if {|x| !(x.is_a?(Net::SFTP::Request) ? x.pending? : x.active?) } # Purge any completed operations, which has two different APIs for some reason
+            sftp_xfers.delete_if { |x| !(x.is_a?(Net::SFTP::Request) ? x.pending? : x.active?) } # Purge any completed operations, which has two different APIs for some reason
             sftp_xfers.length > n_xfers # Run until we have fewer than max
           end
         end
-
-
       end
-
     end
   end
 end

@@ -1,7 +1,7 @@
 #
 # Author:: Noah Kantrowitz <noah@coderanger.net>
 #
-# Copyright 2014, Noah Kantrowitz
+# Copyright:: 2014, Noah Kantrowitz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,14 +16,14 @@
 # limitations under the License.
 #
 
-require 'json'
-require 'digest/sha1'
+require "json" unless defined?(JSON)
+require "digest/sha1" unless defined?(Digest::SHA1)
 
 glob_path = base = ARGV.first
-glob_path = File.join(glob_path, '**', '*') if File.directory?(glob_path)
+glob_path = File.join(glob_path, "**", "*") if File.directory?(glob_path)
 d = Digest::SHA1.new
 STDOUT.write(
-  Dir.glob(glob_path, File::FNM_PATHNAME | File::FNM_DOTMATCH).inject({}) do |memo, path|
+  Dir.glob(glob_path, File::FNM_PATHNAME | File::FNM_DOTMATCH).each_with_object({}) do |path, memo|
     rel_path = path[base.length..-1]
     if File.file?(path) && File.readable?(path)
       d.reset
@@ -31,6 +31,5 @@ STDOUT.write(
     elsif File.directory?(path)
       memo[rel_path] = true
     end
-    memo
   end.to_json
 )

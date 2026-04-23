@@ -57,3 +57,22 @@ jobs:
           use-verbose-mode: "yes"
           check-modified-files-only: "yes"
           base-branch: "main"
+
+  test:
+    name: Unit Test with Ruby
+    runs-on: ubuntu-latest
+    needs: [yamllint, cookstyle]
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - name: Rake Spec
+        run: bundle exec rake spec
