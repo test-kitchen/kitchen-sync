@@ -1,5 +1,5 @@
 #
-# Copyright 2014-2016, Noah Kantrowitz
+# Copyright:: 2014-2016, Noah Kantrowitz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,18 +19,16 @@ module Kitchen
   # Monkey patch to prevent the deletion of everything
   module Provisioner
     class ChefBase < Base
-
       old_init_command = instance_method(:init_command)
 
       define_method(:init_command) do
         if (defined?(Kitchen::Transport::Sftp) && instance.transport.is_a?(Kitchen::Transport::Sftp)) || \
-           (defined?(Kitchen::Transport::Rsync) && instance.transport.is_a?(Kitchen::Transport::Rsync))
-           "mkdir -p #{config[:root_path]}"
+            (defined?(Kitchen::Transport::Rsync) && instance.transport.is_a?(Kitchen::Transport::Rsync))
+          "mkdir -p #{config[:root_path]}"
         else
-          old_init_command.bind(self).()
+          old_init_command.bind(self).call
         end
       end
-
     end
   end
 end
